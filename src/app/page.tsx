@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Roaster } from "@/components/Roaster";
 
 export default function Home() {
@@ -29,6 +30,12 @@ export default function Home() {
             </span>
           ))}
         </div>
+        <Link
+          href="/leaderboard"
+          className="mt-4 text-sm text-zinc-400 underline-offset-2 hover:text-zinc-200 hover:underline"
+        >
+          🏆 查看名人堂排行榜 →
+        </Link>
       </header>
 
       <Roaster />

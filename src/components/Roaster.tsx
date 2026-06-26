@@ -32,6 +32,9 @@ export function Roaster() {
   const [byoOpen, setByoOpen] = useState(false);
   const [byoReason, setByoReason] = useState<string | undefined>();
   const [copied, setCopied] = useState(false);
+  const [percentile, setPercentile] = useState<{ beat: number | null; total: number } | null>(
+    null,
+  );
   const reportRef = useRef<HTMLDivElement>(null);
 
   const runRoast = useCallback(async (scanResult: ScanResult) => {
@@ -89,6 +92,7 @@ export function Roaster() {
       setError("");
       setScan(null);
       setReport("");
+      setPercentile(null);
       setScanning(true);
       try {
         const res = await fetch("/api/scan", {
@@ -104,6 +108,9 @@ export function Roaster() {
         }
         const result = data as ScanResult;
         setScan(result);
+        setPercentile(
+          (data as { percentile?: { beat: number | null; total: number } }).percentile ?? null,
+        );
         setScanning(false);
         void runRoast(result);
         setTimeout(
@@ -118,8 +125,10 @@ export function Roaster() {
     [username, token, scanning, roasting, runRoast],
   );
 
+  const beatText =
+    percentile && percentile.beat !== null ? `，超越了 ${percentile.beat}% 的开发者` : "";
   const shareText = scan
-    ? `我的 GitHub 含金量被审判了：${scan.scoring.final_score}/100 · ${scan.scoring.tier}（${scan.scoring.tier_label}）。来测测你的 👉`
+    ? `我的 GitHub 含金量被审判了：${scan.scoring.final_score}/100 · ${scan.scoring.tier}（${scan.scoring.tier_label}）${beatText}。来测测你的 👉`
     : "";
 
   const copyShare = async () => {
@@ -203,6 +212,16 @@ export function Roaster() {
               {style.emoji} {scan.scoring.tier}
             </div>
             <div className="mt-1 text-sm text-zinc-400">{scan.scoring.tier_label}</div>
+
+            {percentile &&
+              (percentile.beat === null ? (
+                <div className="mt-3 text-sm text-zinc-300">🥇 你是第一个被审判的，前无古人</div>
+              ) : (
+                <div className="mt-3 text-sm">
+                  <span className={`font-semibold ${style.text}`}>🏆 超越了 {percentile.beat}%</span>
+                  <span className="text-zinc-400"> 的开发者（共 {percentile.total} 人受审）</span>
+                </div>
+              ))}
 
             <button
               onClick={copyShare}

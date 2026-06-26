@@ -44,6 +44,7 @@ interface RestUser {
   login: string;
   id: number;
   html_url: string;
+  avatar_url: string | null;
   name: string | null;
   bio: string | null;
   company: string | null;
@@ -353,6 +354,7 @@ export async function collect(username: string): Promise<{
   const metrics: RawMetrics = {
     username: login,
     profile_url: user.html_url,
+    avatar_url: user.avatar_url,
     name: user.name,
     bio: user.bio,
     company: user.company,

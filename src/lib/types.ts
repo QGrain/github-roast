@@ -28,6 +28,7 @@ export interface RecentPr {
 export interface RawMetrics {
   username: string;
   profile_url: string | null;
+  avatar_url: string | null;
   name: string | null;
   bio: string | null;
   company: string | null;

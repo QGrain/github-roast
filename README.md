@@ -41,12 +41,27 @@ pnpm dev
 
 见 [`.env.example`](./.env.example)。最小可跑只需 `GITHUB_TOKEN` + `OPENROUTER_API_KEY`；缓存、限流、人机校验在未配置时会**静默降级**（适合本地）。生产强烈建议全配齐。
 
+## 排行榜 + 百分位（Turso，可选）
+
+配置 `TURSO_*` 后解锁「名人堂排行榜」(`/leaderboard`) 和结果页的「🏆 你超越了 X% 的开发者」。
+每次扫描把账号的最新分数 upsert 进库（一账号一行）；百分位 = 库里分数严格低于你的占比。
+**公开榜只收录 ≥70 分的高分账号**，低分号仍参与百分位统计但不被公开点名（防骚扰）。未配置时整套功能静默降级。
+
+```bash
+# 云端
+turso db create github-roast
+turso db tokens create github-roast   # 得到 TURSO_DATABASE_URL(libsql://...) + TURSO_AUTH_TOKEN
+# 本地开发免云
+TURSO_DATABASE_URL=file:./local.db
+```
+
 ## 部署到 Vercel
 
 1. Push 到 GitHub，在 Vercel 导入。
 2. 配置环境变量（同上）。`UPSTASH_*` 用 Vercel 的 Upstash 集成一键开通。
 3. Cloudflare Turnstile 拿一对 site/secret key，配 `NEXT_PUBLIC_TURNSTILE_SITE_KEY` + `TURNSTILE_SECRET_KEY`。
-4. Deploy。
+4. （可选）Turso：`TURSO_DATABASE_URL` + `TURSO_AUTH_TOKEN` 开排行榜。
+5. Deploy。
 
 ## 成本（≈ $0 / 月）
 
@@ -57,6 +72,7 @@ pnpm dev
 | 大模型 | OpenRouter `:free` 模型（按天限额）；超额转用户自带 Key | $0 |
 | 缓存 / 限流 | Upstash Redis 免费档 | $0 |
 | 人机校验 | Cloudflare Turnstile | $0 |
+| 排行榜 | Turso 免费档（~25M 写 / 10亿读 每月） | $0 |
 
 三个杠杆把成本钉死：① 同账号 **24h 缓存**（少打 GitHub、少调模型，病毒传播时同名账号被反复扫）② **限流 + Turnstile** 挡脚本刷量 ③ **免费额度耗尽自动引导用户填自己的 Key**。
 

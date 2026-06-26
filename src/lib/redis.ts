@@ -10,6 +10,7 @@
 
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
+import type { LeaderboardEntry } from "./db";
 import type { ScanResult } from "./types";
 
 let redis: Redis | null = null;
@@ -114,5 +115,28 @@ export async function checkRateLimit(ip: string): Promise<{ success: boolean }> 
     return { success };
   } catch {
     return { success: true };
+  }
+}
+
+const LEADERBOARD_KEY = "leaderboard:top";
+const LEADERBOARD_TTL_SECONDS = 60;
+
+export async function getCachedLeaderboard(): Promise<LeaderboardEntry[] | null> {
+  const r = getRedis();
+  if (!r) return null;
+  try {
+    return (await r.get<LeaderboardEntry[]>(LEADERBOARD_KEY)) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export async function setCachedLeaderboard(entries: LeaderboardEntry[]): Promise<void> {
+  const r = getRedis();
+  if (!r) return;
+  try {
+    await r.set(LEADERBOARD_KEY, entries, { ex: LEADERBOARD_TTL_SECONDS });
+  } catch {
+    // best-effort
   }
 }
