@@ -1,12 +1,12 @@
-# Savage GitHub Roast · 毒舌 GitHub 评分 🔥
+# Savage GitHub Roast 🔥
+
+**English** · [中文](./README.zh.md)
 
 > **Live:** [githubroast.dev](https://githubroast.dev)
 
 Drop a GitHub handle and get, in 30 seconds, a **0–100 value & trust score**, a four-tier verdict (🏆 Legend / 💪 Solid / 🫥 NPC / 💀 Cooked), and one **brutally honest roast grounded in real data**. Built to expose star-farmers, AI bots, fork-hoarders, and self-merge PR farmers.
 
 The scoring core comes from the open-source Claude skill `github-account-value` — this site **ports its Python scoring logic line-by-line into TypeScript**, with unit tests locking the two outputs in parity.
-
-> 中文用户:输入 GitHub 账号即可得到 0–100 分的价值/信任评分 + 一句扎心毒舌点评。专治刷量号、AI 机器人、收藏夹开发者、自产自销自审自合的 PR farmer。
 
 ## How it works
 
@@ -43,7 +43,7 @@ pnpm dev
 
 ## Environment variables
 
-See [`.env.example`](./.env.example). The minimum to run is `GITHUB_TOKEN` + `LLM_API_KEY` (defaults to StepFun, OpenAI-compatible; swap in any OpenAI-compatible service). Cache, rate limiting, human verification, and the leaderboard **degrade silently** when unconfigured (fine for local). Configure everything for production.
+See [`.env.example`](./.env.example). The minimum to run is `GITHUB_TOKEN` + `LLM_API_KEY` (defaults to StepFun, OpenAI-compatible; swap in any OpenAI-compatible service). Cache, rate limiting, human verification, GitHub login, and the leaderboard **degrade silently** when unconfigured (fine for local). Configure everything for production.
 
 ## Leaderboard + percentile (Turso, optional)
 
