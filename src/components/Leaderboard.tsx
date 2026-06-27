@@ -16,6 +16,55 @@ interface Entry {
 
 const RANK_BADGE = ["🥇", "🥈", "🥉"];
 
+/** Second-line tags: 3 zh + 3 en by default, expandable to show all. */
+function TagRow({ tags }: { tags?: { zh: string[]; en: string[] } }) {
+  const [expanded, setExpanded] = useState(false);
+  const zh = tags?.zh ?? [];
+  const en = tags?.en ?? [];
+  if (zh.length + en.length === 0) return null;
+
+  const zhShown = expanded ? zh : zh.slice(0, 3);
+  const enShown = expanded ? en : en.slice(0, 3);
+  const hidden = zh.length - zhShown.length + (en.length - enShown.length);
+
+  return (
+    <div className="mt-1 flex flex-wrap items-center gap-1">
+      {zhShown.map((t, i) => (
+        <span
+          key={`zh-${t}-${i}`}
+          className="rounded-full bg-orange-500/10 px-1.5 py-px text-[10px] text-orange-200/90"
+        >
+          #{t}
+        </span>
+      ))}
+      {enShown.map((t, i) => (
+        <span
+          key={`en-${t}-${i}`}
+          className="rounded-full bg-sky-500/10 px-1.5 py-px text-[10px] text-sky-200/90"
+        >
+          #{t}
+        </span>
+      ))}
+      {hidden > 0 && (
+        <button
+          onClick={() => setExpanded(true)}
+          className="rounded-full border border-white/10 px-1.5 py-px text-[10px] text-zinc-400 hover:bg-white/10"
+        >
+          +{hidden}
+        </button>
+      )}
+      {expanded && (
+        <button
+          onClick={() => setExpanded(false)}
+          className="rounded-full border border-white/10 px-1.5 py-px text-[10px] text-zinc-400 hover:bg-white/10"
+        >
+          收起
+        </button>
+      )}
+    </div>
+  );
+}
+
 export function Leaderboard({ pageSize }: { pageSize?: number }) {
   const [entries, setEntries] = useState<Entry[] | null>(null);
   const [error, setError] = useState(false);
@@ -78,31 +127,20 @@ export function Leaderboard({ pageSize }: { pageSize?: number }) {
               <div className="h-9 w-9 shrink-0 rounded-full bg-white/10" />
             )}
             <div className="min-w-0 flex-1">
-              <a
-                href={e.profile_url ?? `https://github.com/${e.username}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block truncate font-medium hover:underline"
-              >
-                @{e.username}
-              </a>
-              {(() => {
-                const t = [...(e.tags?.zh ?? []), ...(e.tags?.en ?? [])].slice(0, 2);
-                return t.length ? (
-                  <span className="flex flex-wrap gap-1 pt-0.5">
-                    {t.map((tag, i) => (
-                      <span
-                        key={`${tag}-${i}`}
-                        className="rounded-full bg-orange-500/10 px-1.5 py-px text-[10px] text-orange-200/90"
-                      >
-                        #{tag}
-                      </span>
-                    ))}
-                  </span>
-                ) : e.display_name ? (
-                  <span className="block truncate text-xs text-zinc-500">{e.display_name}</span>
-                ) : null;
-              })()}
+              <div className="truncate">
+                <a
+                  href={e.profile_url ?? `https://github.com/${e.username}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-medium hover:underline"
+                >
+                  @{e.username}
+                </a>
+                {e.display_name && (
+                  <span className="ml-1.5 text-sm text-zinc-500">{e.display_name}</span>
+                )}
+              </div>
+              <TagRow tags={e.tags} />
             </div>
             <span className={`shrink-0 text-xs font-medium ${style.text}`}>
               {style.emoji} {e.tier}
