@@ -203,11 +203,20 @@ export function score(m: RawMetrics): Scoring {
   if (m.pr_flood_suspect ?? false) {
     const floodSample = m.recent_pr_sample ?? 0;
     const repo = m.top_repo_pr_target ?? "one repo";
+    const share = m.top_repo_pr_share ?? 0;
+    const templated = m.templated_pr_ratio ?? 0;
+    // Scale the penalty 12→30 by how concentrated (share) AND how templated the
+    // flood is — a one-repo wall of identical AI-batch PRs gets hit hardest.
+    const severity = Math.max(
+      0,
+      Math.min(1, ((share - 0.5) / 0.5) * 0.5 + ((templated - 0.5) / 0.5) * 0.5),
+    );
+    const floodPenalty = 12 + Math.round(18 * severity);
     flag(
       "templated_pr_flooding",
-      10,
-      `近期 ${Math.round((m.top_repo_pr_share ?? 0) * 100)}% 的 PR 集中刷向 ${repo}，` +
-        `${Math.round((m.templated_pr_ratio ?? 0) * 100)}% 标题高度模板化（${floodSample} 个样本）` +
+      floodPenalty,
+      `近期 ${Math.round(share * 100)}% 的 PR 集中刷向 ${repo}，` +
+        `${Math.round(templated * 100)}% 标题高度模板化（${floodSample} 个样本）` +
         ` — 疑似 AI 批量生成 / 刷量洪水。`,
     );
   }

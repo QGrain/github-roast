@@ -66,16 +66,22 @@ describe("spam-PR red flags", () => {
     expect(score(NEUTRAL).red_flags).toHaveLength(0);
   });
 
-  it("flags templated_pr_flooding when the flood heuristic is suspect", () => {
-    const m: RawMetrics = {
+  it("flags templated_pr_flooding and scales the penalty 12→30 by severity", () => {
+    const mk = (share: number, templated: number): RawMetrics => ({
       ...NEUTRAL,
       pr_flood_suspect: true,
       recent_pr_sample: 18,
       top_repo_pr_target: "langgenius/dify",
-      top_repo_pr_share: 0.8,
-      templated_pr_ratio: 0.75,
-    };
-    expect(hasFlag(m, "templated_pr_flooding")).toBe(true);
+      top_repo_pr_share: share,
+      templated_pr_ratio: templated,
+    });
+    const pen = (m: RawMetrics) =>
+      score(m).red_flags.find((f) => f.flag === "templated_pr_flooding")?.penalty;
+    expect(pen(mk(0.5, 0.5))).toBe(12); // just-suspect → min
+    expect(pen(mk(1.0, 1.0))).toBe(30); // egregious one-repo bot → max
+    const cq = pen(mk(1.0, 0.67))!; // cqjjjzr-ish (all PRs to one repo, 67% templated)
+    expect(cq).toBeGreaterThanOrEqual(20);
+    expect(cq).toBeLessThanOrEqual(26);
   });
 
   it("flags high_pr_rejection when most decided PRs were rejected", () => {
