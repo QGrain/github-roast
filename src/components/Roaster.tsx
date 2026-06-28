@@ -19,7 +19,7 @@ import { ShareCard } from "./ShareCard";
 import { TierAvatarFrame } from "./TierAvatarFrame";
 import { Turnstile, turnstileEnabled } from "./Turnstile";
 
-const SITE_URL = "https://githubroast.icu";
+const SITE_URL = "https://githubroast.dev";
 
 interface Display {
   score: number;

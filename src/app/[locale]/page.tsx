@@ -71,10 +71,10 @@ export default async function Home({ params }: { params: Promise<{ locale: strin
           {t("titleBefore")} <span className="text-orange-500">GitHub</span> {t("titleAfter")}
         </h1>
         <a
-          href="https://githubroast.icu"
+          href="https://githubroast.dev"
           className="mt-2 text-base font-bold tracking-wide text-orange-400 hover:text-orange-300"
         >
-          githubroast.icu
+          githubroast.dev
         </a>
         <p className="mt-3 max-w-md text-zinc-400">{t("tagline")}</p>
         <DeveloperCount />
@@ -102,8 +102,8 @@ export default async function Home({ params }: { params: Promise<{ locale: strin
           })}
         </p>
         <p className="mt-2">
-          <a href="https://githubroast.icu" className="font-bold text-orange-400 hover:text-orange-300">
-            githubroast.icu
+          <a href="https://githubroast.dev" className="font-bold text-orange-400 hover:text-orange-300">
+            githubroast.dev
           </a>
         </p>
       </footer>

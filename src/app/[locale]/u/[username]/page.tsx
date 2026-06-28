@@ -13,7 +13,7 @@ import { TIER_KEY, tierStyle } from "@/lib/tier";
 import { normLang } from "@/lib/lang";
 import type { SubScoreKey } from "@/lib/types";
 
-const SITE_URL = process.env.PUBLIC_SITE_URL || "https://githubroast.icu";
+const SITE_URL = process.env.PUBLIC_SITE_URL || "https://githubroast.dev";
 
 // Re-render at most hourly; on-demand pages are then served from the cache, so a
 // viral account doesn't hammer the DB or rack up function time on every view.

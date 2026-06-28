@@ -93,7 +93,7 @@ function Brand() {
     <div style={{ display: "flex", justifyContent: "space-between", fontSize: 22 }}>
       <div style={{ display: "flex", color: "#71717a" }}>
         GitHub Roast ·{" "}
-        <span style={{ color: "#fb923c", fontWeight: 800, marginLeft: 6 }}>githubroast.icu</span>
+        <span style={{ color: "#fb923c", fontWeight: 800, marginLeft: 6 }}>githubroast.dev</span>
       </div>
       <div style={{ display: "flex", color: "#71717a" }}>Powered by {SPONSOR.name}</div>
     </div>
@@ -214,7 +214,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ username: strin
             Not yet rated
           </div>
           <div style={{ display: "flex", fontSize: 26, color: "#71717a", marginTop: 8 }}>
-            Get roasted at githubroast.icu
+            Get roasted at githubroast.dev
           </div>
         </div>
         <Brand />

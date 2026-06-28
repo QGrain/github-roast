@@ -1,8 +1,8 @@
 {
   "meta": {
-    "title": "毒舌 GitHub 评分 · githubroast.icu",
-    "description": "输入 GitHub 账号，30 秒得到一份 0-100 分的价值与信任评分，外加一句扎心的毒舌点评。专治刷量号、AI 机器人、收藏夹开发者。githubroast.icu",
-    "ogTitle": "毒舌 GitHub 评分 · githubroast.icu",
+    "title": "毒舌 GitHub 评分 · githubroast.dev",
+    "description": "输入 GitHub 账号，30 秒得到一份 0-100 分的价值与信任评分，外加一句扎心的毒舌点评。专治刷量号、AI 机器人、收藏夹开发者。githubroast.dev",
+    "ogTitle": "毒舌 GitHub 评分 · githubroast.dev",
     "ogDescription": "输入 GitHub 账号，30 秒得到 0-100 分的价值与信任评分 + 一句扎心毒舌点评。来测测你的含金量。",
     "twDescription": "输入 GitHub 账号，30 秒出分 + 毒舌点评。来测测你的含金量。",
     "siteName": "毒舌 GitHub 评分"
@@ -60,8 +60,8 @@
   },
   "detailMeta": {
     "title": "{username} — {score}/100 · {tier} | 毒舌 GitHub 评分",
-    "descWithTags": "{tags} —— 在 githubroast.icu 查看 {username} 的完整评分报告。",
-    "descPlain": "{username} 的 GitHub 价值评分报告 —— githubroast.icu。",
+    "descWithTags": "{tags} —— 在 githubroast.dev 查看 {username} 的完整评分报告。",
+    "descPlain": "{username} 的 GitHub 价值评分报告 —— githubroast.dev。",
     "notFoundTitle": "查无此号 · 毒舌 GitHub 评分"
   },
   "roaster": {
@@ -80,7 +80,7 @@
     "pasteGithub": "📌 贴到 GitHub",
     "copied": "已复制 ✓",
     "privateNote": "注：评分仅基于公开信号，私有贡献不计入，可能低估私有组织的活跃员工。",
-    "shareText": "我的 GitHub 含金量被审判了：{score}/100 · {tier}（{tierLabel}）{beat}。来测测你的 👉 githubroast.icu",
+    "shareText": "我的 GitHub 含金量被审判了：{score}/100 · {tier}（{tierLabel}）{beat}。来测测你的 👉 githubroast.dev",
     "shareBeat": "，超越了 {beat}% 的开发者",
     "errNeedTurnstile": "请先完成下方的人机校验。",
     "errRoastFailed": "毒舌生成失败，稍后再试或换用自己的 Key。",

@@ -34,7 +34,7 @@ export async function generateMetadata({
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: "meta" });
   return {
-    metadataBase: new URL("https://githubroast.icu"),
+    metadataBase: new URL("https://githubroast.dev"),
     title: t("title"),
     description: t("description"),
     alternates: {

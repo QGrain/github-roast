@@ -76,7 +76,7 @@ export async function* chatStream(
         "Content-Type": "application/json",
         Authorization: `Bearer ${config.apiKey}`,
         // OpenRouter attribution headers (ignored by other providers).
-        "HTTP-Referer": process.env.PUBLIC_SITE_URL || "https://githubroast.icu",
+        "HTTP-Referer": process.env.PUBLIC_SITE_URL || "https://githubroast.dev",
         "X-Title": "GitHub Roast",
       },
       body: JSON.stringify({
