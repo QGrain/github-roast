@@ -1,9 +1,9 @@
 "use client";
 
-import { useLocale, useTranslations } from "next-intl";
+import { useLocale } from "next-intl";
 import { useState } from "react";
 import { Link } from "@/i18n/navigation";
-import { TIER_KEY, tierStyle } from "@/lib/tier";
+import { tierStyle } from "@/lib/tier";
 import type { Tier } from "@/lib/types";
 
 export interface LeaderboardClientEntry {
@@ -15,6 +15,8 @@ export interface LeaderboardClientEntry {
   tier: Tier;
   tags?: { zh: string[]; en: string[] };
   lookup_count: number;
+  recent_lookup_count: number;
+  trending_score: number;
 }
 
 export interface LeaderboardLabels {
@@ -23,11 +25,16 @@ export interface LeaderboardLabels {
   next: string;
   collapse: string;
   viewDetail: string;
+  trendLabel: string;
+  trendTitle: string;
+  scoreLabel: string;
+  scoreTitle: string;
   heatLabel: string;
   heatTitle: string;
+  recentHeatLabel: string;
 }
 
-export type LeaderboardView = "score" | "heat";
+export type LeaderboardView = "trending" | "score" | "heat";
 
 const RANK_BADGE = ["🥇", "🥈", "🥉"];
 const TAG_TONE: Record<TagLocale, string> = {
@@ -92,23 +99,124 @@ function TagRow({
   );
 }
 
+function MetricBlock({
+  entry,
+  labels,
+  tierTextClass,
+  view,
+}: {
+  entry: LeaderboardClientEntry;
+  labels: LeaderboardLabels;
+  tierTextClass: string;
+  view: LeaderboardView;
+}) {
+  const trendScore = Number.isFinite(entry.trending_score) ? entry.trending_score : 0;
+  const finalScore = Number.isFinite(entry.final_score) ? entry.final_score : 0;
+  const lookupCount = Number.isFinite(entry.lookup_count) ? entry.lookup_count : 0;
+  const recentLookupCount = Number.isFinite(entry.recent_lookup_count)
+    ? entry.recent_lookup_count
+    : 0;
+  const trend = trendScore.toFixed(1);
+  const score = finalScore.toFixed(1);
+  const heat = String(lookupCount);
+  const recent = String(recentLookupCount);
+
+  const primary =
+    view === "score"
+      ? {
+          label: `💯 ${labels.scoreLabel}`,
+          value: finalScore.toFixed(2),
+          title: labels.scoreTitle,
+          textClass: tierTextClass,
+        }
+      : view === "heat"
+        ? {
+            label: `🔥 ${labels.heatLabel}`,
+            value: heat,
+            title: labels.heatTitle,
+            textClass: "text-amber-300",
+          }
+        : {
+            label: `🚀 ${labels.trendLabel}`,
+            value: trend,
+            title: labels.trendTitle,
+            textClass: "text-amber-300",
+          };
+
+  const secondary =
+    view === "score"
+      ? {
+          label: `${labels.trendLabel} / ${labels.heatLabel}`,
+          value: `${trend} / ${heat}`,
+          title: labels.trendTitle,
+        }
+      : view === "heat"
+        ? {
+            label: `${labels.scoreLabel} / ${labels.trendLabel}`,
+            value: `${score} / ${trend}`,
+            title: labels.heatTitle,
+          }
+        : {
+            label: `${labels.scoreLabel} / ${labels.recentHeatLabel}`,
+            value: `${score} / ${recent}`,
+            title: labels.trendTitle,
+          };
+
+  return (
+    <div className="grid w-32 shrink-0 grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-3 gap-y-0.5 text-right sm:w-40">
+      <div
+        className={`truncate text-left text-xs font-medium sm:text-sm ${primary.textClass}`}
+        title={primary.title}
+      >
+        {primary.label}
+      </div>
+      <div
+        className={`text-lg font-black tabular-nums ${primary.textClass}`}
+        title={primary.title}
+        aria-label={`${primary.label} ${primary.value}`}
+      >
+        {primary.value}
+      </div>
+      <div
+        className="truncate text-left text-[11px] font-semibold text-zinc-500"
+        title={secondary.title}
+      >
+        {secondary.label}
+      </div>
+      <div
+        className="text-xs font-black tabular-nums text-zinc-400"
+        title={secondary.title}
+        aria-label={`${secondary.label} ${secondary.value}`}
+      >
+        {secondary.value}
+      </div>
+    </div>
+  );
+}
+
 export function LeaderboardClient({
   initialView,
   labels,
   pageSize,
   scoreEntries,
+  trendingEntries,
   heatEntries,
 }: {
   initialView: LeaderboardView;
   labels: LeaderboardLabels;
   pageSize?: number;
   scoreEntries: LeaderboardClientEntry[];
+  trendingEntries: LeaderboardClientEntry[];
   heatEntries: LeaderboardClientEntry[];
 }) {
   const locale = useLocale();
-  const tTier = useTranslations("tiers");
   const [page, setPage] = useState(0);
-  const entries = initialView === "heat" ? heatEntries : scoreEntries;
+  const entries =
+    initialView === "score"
+      ? scoreEntries
+      : initialView === "heat"
+        ? heatEntries
+        : trendingEntries;
   const tagLocale = tagLocaleFor(locale);
 
   if (entries.length === 0) {
@@ -126,9 +234,7 @@ export function LeaderboardClient({
         {visible.map((e, i) => {
           const rank = offset + i;
           const style = tierStyle(e.tier);
-          const tierName = tTier(`${TIER_KEY[e.tier]}.name`);
           const detailLabel = labels.viewDetail.replace("{username}", e.username);
-          const heatSelected = initialView === "heat";
           const profileUrl = e.profile_url ?? `https://github.com/${encodeURIComponent(e.username)}`;
           return (
             <li
@@ -176,51 +282,12 @@ export function LeaderboardClient({
                   <TagRow labels={labels} locale={tagLocale} tags={e.tags} />
                 </div>
               </div>
-              {heatSelected ? (
-                <div className="grid w-28 shrink-0 grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-3 gap-y-0.5 text-right sm:w-36">
-                  <div
-                    className="truncate text-left text-xs font-medium text-amber-300 sm:text-sm"
-                    title={labels.heatTitle}
-                  >
-                    🔥 {labels.heatLabel}
-                  </div>
-                  <div
-                    className="text-lg font-black tabular-nums text-amber-300"
-                    title={labels.heatTitle}
-                    aria-label={`${labels.heatLabel} ${e.lookup_count}`}
-                  >
-                    {e.lookup_count}
-                  </div>
-                  <div className={`truncate text-left text-[11px] font-medium ${style.text}`}>
-                    {style.emoji} {tierName}
-                  </div>
-                  <div className={`text-sm font-black tabular-nums ${style.text}`}>
-                    {e.final_score.toFixed(2)}
-                  </div>
-                </div>
-              ) : (
-                <div className="grid w-28 shrink-0 grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-3 gap-y-0.5 text-right sm:w-36">
-                  <div className={`truncate text-left text-xs font-medium sm:text-sm ${style.text}`}>
-                    {style.emoji} {tierName}
-                  </div>
-                  <div className={`text-lg font-black tabular-nums ${style.text}`}>
-                    {e.final_score.toFixed(2)}
-                  </div>
-                  <div
-                    className="truncate text-left text-[11px] font-semibold text-amber-300"
-                    title={labels.heatTitle}
-                  >
-                    🔥 {labels.heatLabel}
-                  </div>
-                  <div
-                    className="text-sm font-black tabular-nums text-amber-300"
-                    title={labels.heatTitle}
-                    aria-label={`${labels.heatLabel} ${e.lookup_count}`}
-                  >
-                    {e.lookup_count}
-                  </div>
-                </div>
-              )}
+              <MetricBlock
+                entry={e}
+                labels={labels}
+                tierTextClass={style.text}
+                view={initialView}
+              />
             </li>
           );
         })}

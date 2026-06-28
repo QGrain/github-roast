@@ -10,12 +10,14 @@
 
 import { Client, createClient } from "@libsql/client";
 import { createHash } from "node:crypto";
+import { computeTrendingScore, rankTrending } from "./hotness";
 import type { Lang } from "./lang";
 import { rankSimilar } from "./similarity";
 import type { SubScores, Tags, Tier } from "./types";
 
 const EMPTY_TAGS: Tags = { zh: [], en: [] };
 const HEAT_LOOKUP_WINDOW_MS = 24 * 60 * 60 * 1000;
+const TRENDING_LOOKUP_WINDOW_MS = 7 * HEAT_LOOKUP_WINDOW_MS;
 const MIN_RECORDED_LOOKUP_COUNT = 1;
 
 function parseTags(raw: unknown): Tags {
@@ -56,6 +58,10 @@ function parseSubScores(raw: unknown): SubScores {
 
 function normalizeLookupCount(raw: unknown): number {
   return Math.max(MIN_RECORDED_LOOKUP_COUNT, Number(raw) || 0);
+}
+
+function normalizeRecentLookupCount(raw: unknown): number {
+  return Math.max(0, Number(raw) || 0);
 }
 
 function heatIpHash(ip: string): string {
@@ -176,6 +182,8 @@ export interface LeaderboardEntry {
   tier: Tier;
   tags: Tags;
   lookup_count: number;
+  recent_lookup_count: number;
+  trending_score: number;
 }
 
 const PREVIEW_SUB_SCORES: SubScores = {
@@ -336,11 +344,23 @@ const PREVIEW_HEAT: Record<string, number> = {
   "demo-trash-fire": 36,
 };
 
+const PREVIEW_RECENT_HEAT: Record<string, number> = {
+  "demo-hot-legend": 0,
+  "demo-heat-runner": 22,
+  "demo-score-smith": 5,
+  "demo-fresh-star": 14,
+  "demo-npc-average": 9,
+  "demo-trash-fire": 4,
+};
+
 function previewEnabled(): boolean {
   return process.env.NODE_ENV !== "production" && process.env.GHROAST_PREVIEW_DATA !== "0";
 }
 
 function toLeaderboardEntry(account: AccountDetail): LeaderboardEntry {
+  const lookup_count = normalizeLookupCount(PREVIEW_HEAT[account.username]);
+  const recent_lookup_count = normalizeRecentLookupCount(PREVIEW_RECENT_HEAT[account.username]);
+  const last_lookup_at = recent_lookup_count > 0 ? account.scanned_at : null;
   return {
     username: account.username,
     display_name: account.display_name,
@@ -349,8 +369,33 @@ function toLeaderboardEntry(account: AccountDetail): LeaderboardEntry {
     final_score: account.final_score,
     tier: account.tier,
     tags: account.tags,
-    lookup_count: normalizeLookupCount(PREVIEW_HEAT[account.username]),
+    lookup_count,
+    recent_lookup_count,
+    trending_score: computeTrendingScore(
+      {
+        username: account.username,
+        final_score: account.final_score,
+        lookup_count,
+        recent_lookup_count,
+        last_lookup_at,
+      },
+      PREVIEW_SCANNED_AT,
+    ),
   };
+}
+
+function previewTrendingLeaderboard(limit: number, minScore: number): LeaderboardEntry[] {
+  if (!previewEnabled()) return [];
+  return rankTrending(
+    PREVIEW_ACCOUNTS.filter((account) => account.final_score >= minScore).map((account) => ({
+      ...toLeaderboardEntry(account),
+      last_lookup_at:
+        (PREVIEW_RECENT_HEAT[account.username] ?? 0) > 0 ? account.scanned_at : null,
+    })),
+    PREVIEW_SCANNED_AT,
+  )
+    .slice(0, limit)
+    .map(({ last_lookup_at: _lastLookupAt, ...entry }) => entry);
 }
 
 function previewLeaderboard(limit: number, minScore: number): LeaderboardEntry[] {
@@ -566,7 +611,90 @@ export async function getScoreCount(): Promise<number | null> {
   }
 }
 
-/** Top high-scoring accounts for the public 名人堂 board (excludes hidden). */
+interface LeaderboardRow {
+  username: unknown;
+  display_name: unknown;
+  avatar_url: unknown;
+  profile_url: unknown;
+  final_score: unknown;
+  tier: unknown;
+  tags: unknown;
+  lookup_count: unknown;
+  recent_lookup_count: unknown;
+  last_lookup_at?: unknown;
+}
+
+function normalizeLastLookupAt(raw: unknown): number | null {
+  return raw == null ? null : Number(raw);
+}
+
+function toDbLeaderboardEntry(r: LeaderboardRow, now = Date.now()): LeaderboardEntry {
+  const username = String(r.username);
+  const final_score = Number(r.final_score);
+  const lookup_count = normalizeLookupCount(r.lookup_count);
+  const recent_lookup_count = normalizeRecentLookupCount(r.recent_lookup_count);
+  const last_lookup_at = normalizeLastLookupAt(r.last_lookup_at);
+  return {
+    username,
+    display_name: r.display_name as string | null,
+    avatar_url: r.avatar_url as string | null,
+    profile_url: r.profile_url as string | null,
+    final_score,
+    tier: String(r.tier) as Tier,
+    tags: parseTags(r.tags),
+    lookup_count,
+    recent_lookup_count,
+    trending_score: computeTrendingScore(
+      { username, final_score, lookup_count, recent_lookup_count, last_lookup_at },
+      now,
+    ),
+  };
+}
+
+/** Default 名人堂 board: strong scores lifted by recent unique lookup heat. */
+export async function getTrendingLeaderboard(
+  limit = 100,
+  minScore = 60,
+): Promise<LeaderboardEntry[]> {
+  const db = getClient();
+  if (!db) return previewTrendingLeaderboard(limit, minScore);
+  try {
+    await ensureSchema(db);
+    const now = Date.now();
+    const res = await db.execute({
+      sql: `SELECT s.username, s.display_name, s.avatar_url, s.profile_url,
+                   s.final_score, s.tier, s.tags,
+                   MAX(COALESCE(stats.lookup_count, 0), ${MIN_RECORDED_LOOKUP_COUNT}) AS lookup_count,
+                   COALESCE(recent.recent_lookup_count, 0) AS recent_lookup_count,
+                   stats.last_lookup_at AS last_lookup_at
+            FROM scores AS s
+            LEFT JOIN account_stats AS stats ON stats.username = s.username
+            LEFT JOIN (
+              SELECT username, COUNT(*) AS recent_lookup_count
+              FROM account_lookup_limits
+              WHERE last_counted_at >= ?
+              GROUP BY username
+            ) AS recent ON recent.username = s.username
+            WHERE s.hidden = 0 AND s.final_score >= ?`,
+      args: [now - TRENDING_LOOKUP_WINDOW_MS, minScore],
+    });
+    const entries = rankTrending(
+      res.rows.map((r) => ({
+        ...toDbLeaderboardEntry(r as unknown as LeaderboardRow, now),
+        last_lookup_at: r.last_lookup_at == null ? null : Number(r.last_lookup_at),
+      })),
+      now,
+    )
+      .slice(0, limit)
+      .map(({ last_lookup_at: _lastLookupAt, ...entry }) => entry);
+    return entries.length > 0 ? entries : previewTrendingLeaderboard(limit, minScore);
+  } catch (e) {
+    console.error("getTrendingLeaderboard failed:", e);
+    return previewTrendingLeaderboard(limit, minScore);
+  }
+}
+
+/** Top high-scoring accounts for the public 名人堂 score board (excludes hidden). */
 export async function getLeaderboard(
   limit = 100,
   minScore = 60,
@@ -578,24 +706,26 @@ export async function getLeaderboard(
     const res = await db.execute({
       sql: `SELECT s.username, s.display_name, s.avatar_url, s.profile_url,
                    s.final_score, s.tier, s.tags,
-                   MAX(COALESCE(stats.lookup_count, 0), ${MIN_RECORDED_LOOKUP_COUNT}) AS lookup_count
+                   MAX(COALESCE(stats.lookup_count, 0), ${MIN_RECORDED_LOOKUP_COUNT}) AS lookup_count,
+                   COALESCE(recent.recent_lookup_count, 0) AS recent_lookup_count,
+                   stats.last_lookup_at AS last_lookup_at
             FROM scores AS s
             LEFT JOIN account_stats AS stats ON stats.username = s.username
+            LEFT JOIN (
+              SELECT username, COUNT(*) AS recent_lookup_count
+              FROM account_lookup_limits
+              WHERE last_counted_at >= ?
+              GROUP BY username
+            ) AS recent ON recent.username = s.username
             WHERE s.hidden = 0 AND s.final_score >= ?
             ORDER BY s.final_score DESC, s.scanned_at DESC
             LIMIT ?`,
-      args: [minScore, limit],
+      args: [Date.now() - TRENDING_LOOKUP_WINDOW_MS, minScore, limit],
     });
-    const entries = res.rows.map((r) => ({
-      username: String(r.username),
-      display_name: r.display_name as string | null,
-      avatar_url: r.avatar_url as string | null,
-      profile_url: r.profile_url as string | null,
-      final_score: Number(r.final_score),
-      tier: String(r.tier) as Tier,
-      tags: parseTags(r.tags),
-      lookup_count: normalizeLookupCount(r.lookup_count),
-    }));
+    const now = Date.now();
+    const entries = res.rows.map((r) =>
+      toDbLeaderboardEntry(r as unknown as LeaderboardRow, now),
+    );
     return entries.length > 0 ? entries : previewLeaderboard(limit, minScore);
   } catch (e) {
     console.error("getLeaderboard failed:", e);
@@ -615,24 +745,26 @@ export async function getHeatLeaderboard(
     const res = await db.execute({
       sql: `SELECT s.username, s.display_name, s.avatar_url, s.profile_url,
                    s.final_score, s.tier, s.tags,
-                   MAX(COALESCE(stats.lookup_count, 0), ${MIN_RECORDED_LOOKUP_COUNT}) AS lookup_count
+                   MAX(COALESCE(stats.lookup_count, 0), ${MIN_RECORDED_LOOKUP_COUNT}) AS lookup_count,
+                   COALESCE(recent.recent_lookup_count, 0) AS recent_lookup_count,
+                   stats.last_lookup_at AS last_lookup_at
             FROM scores AS s
             LEFT JOIN account_stats AS stats ON stats.username = s.username
+            LEFT JOIN (
+              SELECT username, COUNT(*) AS recent_lookup_count
+              FROM account_lookup_limits
+              WHERE last_counted_at >= ?
+              GROUP BY username
+            ) AS recent ON recent.username = s.username
             WHERE s.hidden = 0 AND s.final_score >= ?
             ORDER BY lookup_count DESC, s.final_score DESC, s.scanned_at DESC
             LIMIT ?`,
-      args: [minScore, limit],
+      args: [Date.now() - TRENDING_LOOKUP_WINDOW_MS, minScore, limit],
     });
-    const entries = res.rows.map((r) => ({
-      username: String(r.username),
-      display_name: r.display_name as string | null,
-      avatar_url: r.avatar_url as string | null,
-      profile_url: r.profile_url as string | null,
-      final_score: Number(r.final_score),
-      tier: String(r.tier) as Tier,
-      tags: parseTags(r.tags),
-      lookup_count: normalizeLookupCount(r.lookup_count),
-    }));
+    const now = Date.now();
+    const entries = res.rows.map((r) =>
+      toDbLeaderboardEntry(r as unknown as LeaderboardRow, now),
+    );
     return entries.length > 0 ? entries : previewHeatLeaderboard(limit, minScore);
   } catch (e) {
     console.error("getHeatLeaderboard failed:", e);
@@ -774,31 +906,34 @@ export async function getSimilarAccounts(
     const res = await db.execute({
       sql: `SELECT s.username, s.display_name, s.avatar_url, s.profile_url,
                    s.final_score, s.tier, s.tags, s.sub_scores,
-                   MAX(COALESCE(stats.lookup_count, 0), ${MIN_RECORDED_LOOKUP_COUNT}) AS lookup_count
+                   MAX(COALESCE(stats.lookup_count, 0), ${MIN_RECORDED_LOOKUP_COUNT}) AS lookup_count,
+                   COALESCE(recent.recent_lookup_count, 0) AS recent_lookup_count,
+                   stats.last_lookup_at AS last_lookup_at
             FROM scores AS s
             LEFT JOIN account_stats AS stats ON stats.username = s.username
+            LEFT JOIN (
+              SELECT username, COUNT(*) AS recent_lookup_count
+              FROM account_lookup_limits
+              WHERE last_counted_at >= ?
+              GROUP BY username
+            ) AS recent ON recent.username = s.username
             WHERE s.hidden = 0
               AND s.username != ?
               AND s.final_score BETWEEN ? AND ?
             ORDER BY s.final_score DESC
             LIMIT ?`,
       args: [
+        Date.now() - TRENDING_LOOKUP_WINDOW_MS,
         username.toLowerCase(),
         finalScore - SIMILAR_SCORE_BAND,
         finalScore + SIMILAR_SCORE_BAND,
         SIMILAR_POOL,
       ],
     });
+    const now = Date.now();
     const candidates = res.rows.map((r) => ({
-      username: String(r.username),
-      display_name: r.display_name as string | null,
-      avatar_url: r.avatar_url as string | null,
-      profile_url: r.profile_url as string | null,
-      final_score: Number(r.final_score),
-      tier: String(r.tier) as Tier,
-      tags: parseTags(r.tags),
+      ...toDbLeaderboardEntry(r as unknown as LeaderboardRow, now),
       sub_scores: parseSubScores(r.sub_scores),
-      lookup_count: normalizeLookupCount(r.lookup_count),
     }));
     const ranked = rankSimilar(subScores, candidates, limit).map((e) => ({
       username: e.username,
@@ -809,6 +944,8 @@ export async function getSimilarAccounts(
       tier: e.tier,
       tags: e.tags,
       lookup_count: e.lookup_count,
+      recent_lookup_count: e.recent_lookup_count,
+      trending_score: e.trending_score,
     }));
     if (ranked.length > 0) return ranked;
     return previewLeaderboard(Number.MAX_SAFE_INTEGER, 0)

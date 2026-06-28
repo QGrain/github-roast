@@ -1,5 +1,5 @@
 import { getTranslations } from "next-intl/server";
-import { getHeatLeaderboard, getLeaderboard } from "@/lib/db";
+import { getHeatLeaderboard, getLeaderboard, getTrendingLeaderboard } from "@/lib/db";
 import { HomeLeaderboardClient, type HomeLeaderboardLabels } from "./HomeLeaderboardClient";
 import type { LeaderboardLabels } from "./LeaderboardClient";
 
@@ -12,17 +12,24 @@ export async function HomeLeaderboard({ pageSize = 10 }: { pageSize?: number }) 
     next: tBoard("next"),
     collapse: tBoard("collapse"),
     viewDetail: tBoard("viewDetail", { username: "{username}" }),
+    trendLabel: tBoard("trendLabel"),
+    trendTitle: tBoard("trendTitle"),
+    scoreLabel: tBoard("scoreLabel"),
+    scoreTitle: tBoard("scoreTitle"),
     heatLabel: tBoard("heatLabel"),
     heatTitle: tBoard("heatTitle"),
+    recentHeatLabel: tBoard("recentHeatLabel"),
   };
   const labels: HomeLeaderboardLabels = {
     heading: tHome("boardHeading"),
     openBoard: tHome("openBoard"),
+    trendView: tBoard("trendView"),
     scoreView: tBoard("scoreView"),
     heatView: tBoard("heatView"),
   };
 
-  const [scoreEntries, heatEntries] = await Promise.all([
+  const [trendingEntries, scoreEntries, heatEntries] = await Promise.all([
+    getTrendingLeaderboard(500),
     getLeaderboard(500),
     getHeatLeaderboard(500),
   ]);
@@ -32,6 +39,7 @@ export async function HomeLeaderboard({ pageSize = 10 }: { pageSize?: number }) 
       labels={labels}
       leaderboardLabels={leaderboardLabels}
       pageSize={pageSize}
+      trendingEntries={trendingEntries}
       scoreEntries={scoreEntries}
       heatEntries={heatEntries}
     />

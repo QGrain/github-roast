@@ -32,11 +32,19 @@ export default async function LeaderboardPage({
 }) {
   const { locale } = await params;
   const query = await searchParams;
-  const view: LeaderboardView = query?.view === "heat" ? "heat" : "score";
+  const view: LeaderboardView =
+    query?.view === "score" || query?.view === "heat" ? query.view : "trending";
   await connection();
   setRequestLocale(locale);
   const t = await getTranslations("leaderboard");
-  const pageTitle = view === "heat" ? t("heatView") : t("heading");
+  const viewTitle =
+    view === "score" ? t("scoreView") : view === "heat" ? t("heatView") : t("trendView");
+  const viewDescription =
+    view === "score"
+      ? t("scoreSubtitle")
+      : view === "heat"
+        ? t("heatSubtitle")
+        : t("trendSubtitle");
 
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col px-5 py-14 sm:py-20">
@@ -44,11 +52,22 @@ export default async function LeaderboardPage({
         <div className="flex flex-col items-start gap-5 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
             <h1 className="text-4xl font-black leading-tight tracking-tight text-zinc-100 sm:text-5xl">
-              {pageTitle}
+              {t("heading")}
             </h1>
+            <p className="mt-2 text-zinc-400">{t("subtitle")}</p>
             <div className="mt-4 inline-flex max-w-full flex-wrap items-center gap-1 rounded-full border border-white/10 bg-white/[0.03] p-1 text-sm font-bold">
               <Link
                 href="/leaderboard"
+                className={`rounded-full px-3 py-1.5 transition-colors ${
+                  view === "trending"
+                    ? "bg-white/10 text-zinc-100"
+                    : "text-zinc-500 hover:text-zinc-200"
+                }`}
+              >
+                {t("trendView")}
+              </Link>
+              <Link
+                href="/leaderboard?view=score"
                 className={`rounded-full px-3 py-1.5 transition-colors ${
                   view === "score"
                     ? "bg-white/10 text-zinc-100"
@@ -76,7 +95,14 @@ export default async function LeaderboardPage({
             {t("judgeCta")}
           </Link>
         </div>
-        <p className="mt-2 text-zinc-400">{t("subtitle")}</p>
+        <div className="mt-7">
+          <h2 className="text-2xl font-black leading-tight text-zinc-100">
+            {viewTitle}
+          </h2>
+          <p className="mt-2 text-sm leading-relaxed text-zinc-400">
+            {viewDescription}
+          </p>
+        </div>
       </header>
 
       <Leaderboard pageSize={20} initialView={view} />

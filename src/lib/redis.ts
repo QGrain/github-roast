@@ -217,13 +217,13 @@ export async function setCachedStats(total: number): Promise<void> {
   }
 }
 
-export type LeaderboardCacheView = "score" | "heat";
+export type LeaderboardCacheView = "trending" | "score" | "heat";
 
 const leaderboardKey = (view: LeaderboardCacheView) => `leaderboard:${view}`;
 const LEADERBOARD_TTL_SECONDS = 300; // 5 min — board moves slowly; fewer DB reads
 
 export async function getCachedLeaderboard(
-  view: LeaderboardCacheView = "score",
+  view: LeaderboardCacheView = "trending",
 ): Promise<LeaderboardEntry[] | null> {
   const r = getRedis();
   if (!r) return null;
@@ -236,7 +236,7 @@ export async function getCachedLeaderboard(
 
 export async function setCachedLeaderboard(
   entries: LeaderboardEntry[],
-  view: LeaderboardCacheView = "score",
+  view: LeaderboardCacheView = "trending",
 ): Promise<void> {
   const r = getRedis();
   if (!r) return;
@@ -251,7 +251,11 @@ export async function clearCachedLeaderboards(): Promise<void> {
   const r = getRedis();
   if (!r) return;
   try {
-    await r.del(leaderboardKey("score"), leaderboardKey("heat"));
+    await r.del(
+      leaderboardKey("trending"),
+      leaderboardKey("score"),
+      leaderboardKey("heat"),
+    );
   } catch {
     // best-effort
   }
