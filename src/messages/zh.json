@@ -21,12 +21,12 @@
     "title": "源码与评分算法均开源 · 在 GitHub 查看"
   },
   "home": {
-    "leaderboardPill": "名人堂排行榜",
-    "leaderboardPillTag": "看谁最强",
-    "authorIntro": "作者 hikariming，欢迎关注 👉",
+    "leaderboardPill": "名人堂",
+    "leaderboardPillTag": "发现最强开发者",
     "titleBefore": "毒舌",
     "titleAfter": "评分",
-    "tagline": "输入一个 GitHub 账号，得到 0–100 分的价值与信任评分，外加一句扎心又有梗的毒舌点评。",
+    "subtitle": "给自己打分 · 发现最佳开发者",
+    "tagline": "输入 GitHub 账号，30 秒得到 0–100 分的价值与信任评分和一句扎心毒舌点评；再逛逛名人堂，发现最值得关注的优质开发者。",
     "boardHeading": "🏆 名人堂",
     "openBoard": "打开完整榜单 →",
     "disclaimer1": "本站仅基于 GitHub <b>公开数据</b>自动生成评分与点评，吐槽的是账号的公开行为与数据，非针对个人。结果不构成对任何人的事实认定，请勿用于骚扰。",
